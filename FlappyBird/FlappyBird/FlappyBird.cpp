@@ -4,6 +4,7 @@ using namespace std;
 #include <vector>
 #include <string>
 #include <fstream>
+#include <memory>
 #define WINDOW_HEIGHT 600
 #define WINDOW_WIDTH 800
 #define GRAVITY 0.25
@@ -28,22 +29,22 @@ public:
 
 	Entity(const int the_x, const int the_y, const int the_width, const int the_height): x(the_x), y(the_y), width(the_width), height(the_height) {}
 
-	int getY()const
+	const int getY()const
 	{
 		return y;
 	}
 
-	int getX()const
+	const int getX()const
 	{
 		return x;
 	}
 
-	int getWidth()const
+	const int getWidth()const
 	{
 		return width;
 	}
 
-	int getHeight()const
+	const int getHeight()const
 	{
 		return height;
 	}
@@ -60,8 +61,7 @@ class Pipe: public Entity {
 	bool passed = false;
 	bool makeSoft()const
 	{
-		srand(time(0));
-		int chance = rand() % (SOFT_PIPE_CHANCE + 1);
+		const int chance = rand() % (SOFT_PIPE_CHANCE + 1);
 		if (chance % 17 == 0)
 		{
 			return true;
@@ -92,6 +92,11 @@ public:
 	{
 		x += value;
 	}
+
+	bool checkIfPassed()const
+	{
+		return passed;
+	}
 };
 
 struct Bird: public Entity
@@ -99,7 +104,7 @@ struct Bird: public Entity
 	Bird(): Entity(WINDOW_WIDTH / 5, WINDOW_HEIGHT / 2, BIRD_WIDTH, BIRD_HEIGHT) {}
 	void flapWings()
 	{
-		y--;
+		y-=10;
 	};
 	void updatePosition(const int value)override
 	{
@@ -110,7 +115,7 @@ struct Bird: public Entity
 class Score
 {
 	double currentScore = 0;
-	double getBestScore()const
+	const double getBestScore()const
 	{
 		ifstream file("score.txt");
 		if (!file.is_open())
@@ -126,19 +131,23 @@ class Score
 public:
 	Score() {};
 
-	Score& operator+=(const double value)
+	const Score& operator+=(const double value)
 	{
 		currentScore+= value;
 		return *this;
 	}
-	
-	double getScore() const
+	const Score& operator=(const double value)
+	{
+		currentScore = value;
+		return *this;
+	}
+	const double getScore() const
 	{
 		return currentScore;
 	};
 	void saveBestScore() const
 	{
-		double previous_best_score = getBestScore();
+		const double previous_best_score = getBestScore();
 		if (previous_best_score > currentScore)
 		{
 			return;
@@ -158,7 +167,7 @@ public:
 };
 
 class GameEngine {
-	static GameEngine* instance;
+	static unique_ptr<GameEngine> instance;
 	sf::Clock clock;
 	vector<Pipe> pipes;
 	Bird bird;
@@ -174,7 +183,7 @@ class GameEngine {
 
 		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 50)
 		{
-			velocityX += 0.25;
+			velocityX -= 0.25;
 			velocityY += 0.25;
 			lastUpdate = elapsedTime;
 		}
@@ -183,7 +192,6 @@ class GameEngine {
 
 	void generatePipes()
 	{
-		srand(time(0));
 		int topPipeHeight = rand() % (PIPE_MAX_HEIGHT - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
 		int topY = topPipeHeight-1;
 		int bottomPipeHeight = rand() % (PIPE_MAX_HEIGHT - topPipeHeight - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
@@ -197,10 +205,10 @@ class GameEngine {
 	};
 
 
-	GameEngine();
+	GameEngine()=default;
 public:
 
-	const vector<Pipe> getPipes() const 
+	const vector<Pipe>& getPipes() const 
 	{
 		return pipes;
 	};
@@ -239,8 +247,7 @@ public:
 		{
 			gameOver = true;
 			return;
-		}
-		
+		}		
 
 		for (Pipe& pipe : pipes)
 		{
@@ -254,7 +261,7 @@ public:
 					return;
 				}
 			}
-			else
+			else if(!pipe.checkIfPassed() && bird.getX() > pipe.getX() + pipe.getWidth())
 			{
 				pipe.makePassed();
 				score+=0.5;
@@ -262,7 +269,7 @@ public:
 		}
 		
 	};
-	void startGame()
+	void start()
 	{
 		gameStarted = true;
 		clock.restart();
@@ -273,10 +280,12 @@ public:
 	};
 	bool gameOver = false;
 	bool gameStarted = false;
-	void resetGame()
+	void reset()
 	{
 		score.saveBestScore();
-		startGame();
+		pipes.clear();
+		score = 0;
+		start();
 	};
 	void flap() 
 	{
@@ -287,16 +296,22 @@ public:
 		};
 		
 	}
+
+	GameEngine& operator=(const Command& command)
+	{
+
+	}
 	static GameEngine* getInstance()
 	{
 		if (instance == nullptr)
 		{
-			instance = new GameEngine();
+			srand(static_cast<unsigned>(time(0)));
+			instance = make_unique<GameEngine>();
 		}
-		return instance;
+		return instance.get();
 	};
 };
-GameEngine* GameEngine::instance = nullptr;
+unique_ptr<GameEngine> GameEngine::instance = nullptr;
 
 enum Command
 {
@@ -306,14 +321,14 @@ enum Command
 };
 
 class UserAction {
-	Command type; 
+	const Command type; 
 public:
 	UserAction(Command type) : type(type) {}
-	void execute(GameEngine& game)
+	void execute(GameEngine& game)const
 	{
 		if (type == StartGame)
 		{
-			game.go();
+			game.start();
 		}
 		else if (type == FlapWings)
 		{
@@ -322,7 +337,7 @@ public:
 		}
 		else
 		{
-			game.resetGame();
+			game.reset();
 
 		}
 	
@@ -331,9 +346,9 @@ public:
 
 class Render {
 private:
-	static Render* instance; 
+	static unique_ptr<Render> instance;
 
-	sf::RenderWindow window;
+	const sf::RenderWindow window;
 	Render() : window(sf::VideoMode(WINDOW_HEIGHT, WINDOW_WIDTH), "Game") {}
 
 	void drawPipe(const Pipe& pipe);
@@ -346,15 +361,15 @@ private:
 public:
 
 	static Render* getInstance() {
-		if (!instance)
-			instance = new Render();
-		return instance;
+		if (instance == nullptr)
+			instance = make_unique<Render>();
+		return instance.get();
 	}
 
 	void launch();
 };
 
-Render* Render::instance = nullptr;
+unique_ptr<Render> Render::instance = nullptr;
 
 
 
