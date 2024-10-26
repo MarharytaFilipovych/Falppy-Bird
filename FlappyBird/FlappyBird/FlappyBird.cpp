@@ -121,7 +121,7 @@ class Score
 		if (!file.is_open())
 		{
 			cout << "Problems with score.txt!" << endl;
-			return;
+			return 0;
 		}
 		string score;
 		getline(file, score);	
@@ -167,7 +167,7 @@ public:
 };
 
 class GameEngine {
-	static unique_ptr<GameEngine> instance;
+	static GameEngine* instance;
 	sf::Clock clock;
 	vector<Pipe> pipes;
 	Bird bird;
@@ -196,7 +196,7 @@ class GameEngine {
 		int topY = topPipeHeight-1;
 		int bottomPipeHeight = rand() % (PIPE_MAX_HEIGHT - topPipeHeight - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
 		int bottomY = WINDOW_HEIGHT - bottomPipeHeight - 1;
-		int width = rand() % (PIPE_MAX_WIDTH - PIPE_MIN_WIDTH + 1)+ PIPE_MAX_WIDTH;
+		int width = rand() % (PIPE_MAX_WIDTH - PIPE_MIN_WIDTH + 1)+ PIPE_MIN_WIDTH;
 
 		Pipe topPipe(topY, width, topPipeHeight, Top);
 		Pipe bottomPipe(bottomY, width, bottomPipeHeight, Bottom);
@@ -243,6 +243,8 @@ public:
 
 		velocityY += GRAVITY;
 		bird.updatePosition(velocityY);
+		cout << "Bird y:" << bird.getY() << endl;
+
 		if (collisionCanvas())
 		{
 			over = true;
@@ -252,6 +254,7 @@ public:
 		for (Pipe& pipe : pipes)
 		{
 			pipe.updatePosition(velocityX);
+			cout << "Pipe x:" << bird.getX() << ", width " << pipe.getWidth() << ", height: " << pipe.getHeight()<< endl;
 
 			if (collisionPipe(pipe))
 			{
@@ -260,11 +263,13 @@ public:
 					over = true;
 					return;
 				}
+				cout << "Coliision" << endl;
 			}
 			else if(!pipe.checkIfPassed() && bird.getX() > pipe.getX() + pipe.getWidth())
 			{
 				pipe.makePassed();
 				score+=0.5;
+				cout << score.getScore() << endl;
 			}
 		}
 		
@@ -290,149 +295,123 @@ public:
 	void flap() 
 	{
 		bird.flapWings();
+		cout << "FlapBird y:" << bird.getY() << endl;
+
 		if (collisionCanvas())
 		{
 			over = true;
+			cout << "coliision" << endl;
 		};
 		
 	}
 
-	GameEngine& operator=(const Command& command)
-	{
-
-	}
+	
 	static GameEngine* getInstance()
 	{
 		if (instance == nullptr)
 		{
 			srand(static_cast<unsigned>(time(0)));
-			instance = make_unique<GameEngine>();
+			instance = new GameEngine();
 		}
-		return instance.get();
+		return instance;
 	};
 };
-unique_ptr<GameEngine> GameEngine::instance = nullptr;
+GameEngine* GameEngine::instance = nullptr;
 
-enum Command
-{
-	StartGame,
-	FlapWings,
-	Reset,
-	Finish
-};
-
-class UserAction {
-	const Command type; 
-	GameEngine* game = GameEngine::getInstance();
-	void execute()const
-	{
-		if (type == StartGame)
-		{
-			game->start();
-		}
-		else if (type == FlapWings)
-		{
-
-			game->flap();
-		}
-		else if (type == Reset)
-		{
-			game->reset();
-
-		}
-		else
-		{
-			game->over = true;
-		}
-
-	}
-	
-public:
-	UserAction(Command type) : type(type) 
-	{
-		execute();
-	}
-	
-	
-
-	bool started()const
-	{
-		return game->started;
-	}
-
-	
-};
 
 class Render {
 private:
-	static unique_ptr<Render> instance;
+	static Render* instance;
 
 	sf::RenderWindow window;
-	Render() : window(sf::VideoMode(WINDOW_HEIGHT, WINDOW_WIDTH), "Game") {}
+	Render() : window(sf::VideoMode(WINDOW_HEIGHT, WINDOW_WIDTH), "Flappy bird", sf::Style::Close) {}
 
-	void drawPipe(const Pipe& pipe);
-	void drawBird(const Bird& bird);
-	void manageWindow();
-	void displayGameOver();
-	void render(GameEngine& game);
-	void processEvents();
+	void drawPipe(const Pipe& pipe){}
+	void drawBird(const Bird& bird)
+	{}
+	void manageWindow()
+	{}
+	void displayGameOver()
+	{}
+	void render(GameEngine* game)
+	{
+	
+	}
+	void processEvents(GameEngine* game)
+	{		
+		sf::Event event;
+		while (window.pollEvent(event) && !game->over)
+		{
+			if (event.type == sf::Event::Closed)
+			{
+				game->over = true;
+				window.close();
+			}
+			else if ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed) && !game->started)
+			{
+				if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
+				{
+					game->start();
 
+				}
+
+			}
+			else if (event.type == sf::Event::MouseButtonPressed && game->started)
+			{
+				if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
+				{
+					game->flap();
+				}
+			}
+			else if (event.type == sf::Event::KeyPressed)
+			{
+				if (event.key.scancode == sf::Keyboard::Scan::RControl)
+				{
+					game -> reset();
+				}
+
+			}
+		}
+	
+	};
 public:
 
 	static Render* getInstance() {
 		if (instance == nullptr)
-			instance = make_unique<Render>();
-		return instance.get();
+		{
+			instance = new Render();
+		}
+		return instance;
 	}
 
-	void launch()
+	void launch(GameEngine* game)
 	{
 		while (window.isOpen())
 		{
-			sf::Event event;
-			while (window.pollEvent(event))
+			processEvents(game);
+			if (!game->over && game->started)
 			{
-				if (event.type == sf::Event::Closed)
+				game->go(); // Update game logic in every frame
+				if (game->over)
 				{
-					UserAction action(Finish);
-					window.close();
-				}
-				else if ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed) && !UserAction::started)
-				{
-					if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
-					{
-						UserAction action(StartGame);
-
-					}
-
-				}
-				else if (event.type == sf::Event::MouseButtonPressed  && UserAction::started)
-				{
-					if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
-					{
-						UserAction action(FlapWings);
-					}
-				}
-				else if (event.type == sf::Event::KeyPressed)
-				{
-					if (event.key.scancode == sf::Keyboard::Scan::RControl)
-					{
-						UserAction action(Reset);
-					}
-				
+					cout << "over" << endl;
 				}
 			}
-
+			render(game);
 		}
-	};
+		
+	}
 };
 
-unique_ptr<Render> Render::instance = nullptr;
+Render* Render::instance = nullptr;
 
 
 
 int main()
 {
-   cout << "Hello World!\n";
-}
+	GameEngine* gameEngine = GameEngine::getInstance(); 
+	Render* render = Render::getInstance(); 
 
+	render->launch(gameEngine); 
+	return 0;
+}
