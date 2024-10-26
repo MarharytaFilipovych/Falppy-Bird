@@ -245,7 +245,7 @@ public:
 		bird.updatePosition(velocityY);
 		if (collisionCanvas())
 		{
-			gameOver = true;
+			over = true;
 			return;
 		}		
 
@@ -257,7 +257,7 @@ public:
 			{
 				if (!pipe.checkIfSoft())
 				{
-					gameOver = true;
+					over = true;
 					return;
 				}
 			}
@@ -271,15 +271,15 @@ public:
 	};
 	void start()
 	{
-		gameStarted = true;
+		started = true;
 		clock.restart();
 		lastPipeSGenerated = clock.getElapsedTime();
 		generatePipes();
 		go();
 		
 	};
-	bool gameOver = false;
-	bool gameStarted = false;
+	bool over = false;
+	bool started = false;
 	void reset()
 	{
 		score.saveBestScore();
@@ -292,7 +292,7 @@ public:
 		bird.flapWings();
 		if (collisionCanvas())
 		{
-			gameOver = true;
+			over = true;
 		};
 		
 	}
@@ -318,37 +318,56 @@ enum Command
 	StartGame,
 	FlapWings,
 	Reset,
+	Finish
 };
 
 class UserAction {
 	const Command type; 
-public:
-	UserAction(Command type) : type(type) {}
-	void execute(GameEngine& game)const
+	GameEngine* game = GameEngine::getInstance();
+	void execute()const
 	{
 		if (type == StartGame)
 		{
-			game.start();
+			game->start();
 		}
 		else if (type == FlapWings)
 		{
-			
-			game.flap();
+
+			game->flap();
+		}
+		else if (type == Reset)
+		{
+			game->reset();
+
 		}
 		else
 		{
-			game.reset();
-
+			game->over = true;
 		}
+
+	}
 	
-	};
+public:
+	UserAction(Command type) : type(type) 
+	{
+		execute();
+	}
+	
+	
+
+	bool started()const
+	{
+		return game->started;
+	}
+
+	
 };
 
 class Render {
 private:
 	static unique_ptr<Render> instance;
 
-	const sf::RenderWindow window;
+	sf::RenderWindow window;
 	Render() : window(sf::VideoMode(WINDOW_HEIGHT, WINDOW_WIDTH), "Game") {}
 
 	void drawPipe(const Pipe& pipe);
@@ -366,7 +385,46 @@ public:
 		return instance.get();
 	}
 
-	void launch();
+	void launch()
+	{
+		while (window.isOpen())
+		{
+			sf::Event event;
+			while (window.pollEvent(event))
+			{
+				if (event.type == sf::Event::Closed)
+				{
+					UserAction action(Finish);
+					window.close();
+				}
+				else if ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed) && !UserAction::started)
+				{
+					if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
+					{
+						UserAction action(StartGame);
+
+					}
+
+				}
+				else if (event.type == sf::Event::MouseButtonPressed  && UserAction::started)
+				{
+					if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
+					{
+						UserAction action(FlapWings);
+					}
+				}
+				else if (event.type == sf::Event::KeyPressed)
+				{
+					if (event.key.scancode == sf::Keyboard::Scan::RControl)
+					{
+						UserAction action(Reset);
+					}
+				
+				}
+			}
+
+		}
+	};
 };
 
 unique_ptr<Render> Render::instance = nullptr;
