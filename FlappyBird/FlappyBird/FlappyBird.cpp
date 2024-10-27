@@ -178,9 +178,7 @@ public:
 			cout << "Problems with score.txt!" << endl;
 			return;
 		}
-		
 		file << currentScore;
-		cout << "The score was loaded successfully!" << endl;
 		file.close();
 
 	}
@@ -369,8 +367,8 @@ private:
 	{
 		sf::RectangleShape pipe_shape(sf::Vector2f(pipe.getWidth(), pipe.getHeight()));
 		pipe.checkIfSoft()? pipe_shape.setFillColor(sf::Color::Yellow): pipe_shape.setFillColor(sf::Color::Cyan);
-			pipe_shape.setPosition(pipe.getX(), pipe.getY());
-			window.draw(pipe_shape);
+		pipe_shape.setPosition(pipe.getX(), pipe.getY());
+		window.draw(pipe_shape);
 		
 
 		
@@ -379,8 +377,7 @@ private:
 	{
 		sf::RectangleShape bird_shape(sf::Vector2f(bird.getWidth(), bird.getHeight()));
 		bird_shape.setFillColor(sf::Color::Magenta);
-		bird_shape.setOrigin(bird.getWidth()/2.f, bird.getHeight() / 2.f);
-		bird_shape.setPosition(bird.getX(), bird.getY());
+		bird_shape.setPosition(bird.getX()- bird.getWidth(), bird.getY()- bird.getHeight());
 		window.draw(bird_shape);
 	}
 	void manageWindow()
@@ -409,23 +406,23 @@ private:
 			}
 			else if ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed) && !game->started)
 			{
-				if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
+				if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
 				{
 					game->start();
 
 				}
 
 			}
-			else if (event.type == sf::Event::MouseButtonPressed && game->started)
+			else if ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyReleased )&& game->started)
 			{
-				if (event.mouseButton.button == sf::Mouse::Left || event.key.scancode == sf::Keyboard::Scan::Escape)
+				if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
 				{
 					game->flap();
 				}
 			}
-			else if (event.type == sf::Event::KeyPressed)
+			else if (event.type == sf::Event::KeyReleased)
 			{
-				if (event.key.scancode == sf::Keyboard::Scan::RControl)
+				if (event.key.code == sf::Keyboard::R)
 				{
 					game -> reset();
 				}
