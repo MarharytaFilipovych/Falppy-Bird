@@ -20,6 +20,7 @@ using namespace std;
 #define VELOCITY_Y 0
 #define VELOCITY_X -1
 #define JUMP -0.5
+
 class Entity
 {
 protected:
@@ -186,10 +187,8 @@ public:
 	const double getBestScore()const
 	{
 		return getPreviousBestScore() > currentScore ? getPreviousBestScore() : currentScore;
-
 	}
 };
-
 
 class GameEngine
 {
@@ -205,7 +204,6 @@ class GameEngine
 	{
 		static sf::Time lastUpdate = sf::seconds(0);
 		sf::Time elapsedTime = clock.getElapsedTime();
-
 		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 20)
 		{
 			velocityX -= 0.1;
@@ -213,35 +211,24 @@ class GameEngine
 			lastUpdate = elapsedTime;
 			timePipes += 0.5;
 		}
-	};
-
+	}
 
 	void generatePipes()
 	{
-		
-
 		int topPipeHeight = rand() % (PIPE_MAX_HEIGHT - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
 		int topY = 0;
 		int bottomPipeHeight = rand() % (PIPE_MAX_HEIGHT - topPipeHeight - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
 		int bottomY = WINDOW_HEIGHT - bottomPipeHeight - 1;
 		int width = rand() % (PIPE_MAX_WIDTH - PIPE_MIN_WIDTH + 1) + PIPE_MIN_WIDTH;
 		int space = WINDOW_HEIGHT - topPipeHeight - bottomPipeHeight;
-		cout << "Space:" << space << endl;
 		Pipe topPipe(topY, width, topPipeHeight, Top);
 		Pipe bottomPipe(bottomY, width, bottomPipeHeight, Bottom);
 		pipes.push_back(topPipe);
 		pipes.push_back(bottomPipe);
 	}
+
 	GameEngine() = default;
-
-
 	double timePipes = 0.5;
-public:
-
-	const vector<Pipe>& getPipes() const
-	{
-		return pipes;
-	}
 
 	bool collisionCanvas()const
 	{
@@ -252,27 +239,28 @@ public:
 	{
 		const int pipeX = pipe.getX();
 		const int pipeY = pipe.getY();
-
 		const int pipeRightX = pipe.getX() + pipe.getWidth();
 		const int pipeBottomY = pipeY + pipe.getHeight();
-
 		if (bird.getX() - bird.getWidth() / 2 <= pipeRightX &&
 			bird.getX() + bird.getWidth() / 2 >= pipe.getX())
 		{
 			if (pipe.getType() == Top && bird.getY() - bird.getHeight() / 2 < pipeBottomY && !pipe.checkIfSoft())
 			{
-				cout << "Collision: Bird Y < Top Pipe Bottom Y. Bird Y: " << bird.getY()
-					<< ", Pipe Bottom Y: " << pipeBottomY << endl;
 				return true;
 			}
 			if (pipe.getType() == Bottom && bird.getY() + bird.getHeight() / 2 > pipe.getY() && !pipe.checkIfSoft())
 			{
-				cout << "Collision: Bird Y > Bottom Pipe Y. Bird Y: " << bird.getY()
-					<< ", Pipe Y: " << pipe.getY() << endl;
 				return true;
 			}
 		}
 		return false;
+	}
+
+public:
+
+	const vector<Pipe>& getPipes() const
+	{
+		return pipes;
 	}
 
 	void go()
@@ -283,19 +271,15 @@ public:
 			generatePipes();
 			lastPipeSGenerated = currentTime;
 		}
-
 		bird.updateVelocity(GRAVITY);
 		bird.updatePosition();
-
 		if (collisionCanvas())
 		{
 			Over();
 			return;
 		}
-
 		for (Pipe& pipe : pipes)
 		{
-
 			pipe.updatePosition(velocityX);
 			if (collisionPipe(pipe))
 			{
@@ -315,8 +299,8 @@ public:
 				score += 0.5;
 			}
 		}
+	}
 
-	};
 	void start()
 	{
 		started = true;
@@ -324,15 +308,11 @@ public:
 		lastPipeSGenerated = clock.getElapsedTime();
 		generatePipes();
 		go();
-
 	}
 
 	bool over = false;
 	bool started = false;
 	bool paused = false;
-
-
-
 
 	void reset()
 	{
@@ -386,7 +366,6 @@ class Render {
 private:
 
 	static Render* instance;
-
 	sf::RenderWindow window;
 	sf::Texture pipeTexture;
 	sf::Texture birdTexture;
@@ -402,9 +381,7 @@ private:
 	{
 		loadFiles();
 		overSound.setBuffer(overBuffer);
-
 		music.setLoop(true);
-
 		squick.setBuffer(bufferForSquick);
 		squick.setVolume(25);
 	}
@@ -431,11 +408,9 @@ private:
 		if (!music.openFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\song.ogg"))
 		{
 			cout << "Music could not be loaded!" << endl;
-
 		}
 		if (!overBuffer.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\explosion.wav")) {
 			cout << "Game over sound could not be loaded!" << endl;
-			return;
 		}
 	}
 
@@ -443,10 +418,8 @@ private:
 	{
 		float desiredWidth = static_cast<float>(entity.getWidth());
 		float desiredHeight = static_cast<float>(entity.getHeight());
-
 		float originalWidth = texture.getSize().x;
 		float originalHeight = texture.getSize().y;
-
 		float scaleX = desiredWidth / originalWidth;
 		float scaleY = desiredHeight / originalHeight;
 		return { scaleX, scaleY };
@@ -471,7 +444,6 @@ private:
 		}
 		pipe_shape.setScale(scale.first, scale.second);
 		window.draw(pipe_shape);
-
 	}
 
 	void displayPaused()
@@ -484,7 +456,6 @@ private:
 		triangle.setOrigin(triangle.getRadius(), triangle.getRadius() * (1.0f / sqrt(3.0f)));
 		triangle.setPosition(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2));
 		window.draw(triangle);
-
 	}
 
 	void drawBird(const Bird& bird) 
@@ -496,6 +467,7 @@ private:
 		bird_shape.setPosition(bird.getX() - (bird.getWidth() / 2), bird.getY() - (bird.getHeight() / 2));
 		window.draw(bird_shape);
 	}
+
 	void manageWindow()
 	{
 		Entity background_entity(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -505,9 +477,8 @@ private:
 		background.setScale(scale.first, scale.second);
 		background.setPosition(0, 0);
 		window.draw(background);
-
-
 	}
+
 	void applyStylesToText(sf::Text& text)
 	{
 		text.setFont(font);
@@ -522,17 +493,14 @@ private:
 	{
 		sf::Text gameOverMessage;
 		sf::Text scoreMessage;
-
 		gameOverMessage.setString("Game over!\n");
 		scoreMessage.setString("Your score: " + to_string(static_cast<int>(game->getScore().getScore())) + "\nBest score: " + to_string(static_cast<int>(game->getScore().getBestScore())));
 		applyStylesToText(gameOverMessage);
-		applyStylesToText(scoreMessage);
-		
+		applyStylesToText(scoreMessage);		
 		gameOverMessage.setPosition(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 6));
 		scoreMessage.setPosition(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 6 + 90));
 	    window.draw(gameOverMessage);
-		window.draw(scoreMessage);
-		
+		window.draw(scoreMessage);	
 	}
 	
 	void displayPoints(GameEngine* game)
@@ -544,9 +512,9 @@ private:
 			applyStylesToText(points);
 			points.setPosition(sf::Vector2f(50.f, 10.f));
 			window.draw(points);
-		}
-		
+		}	
 	}
+
 	void render(GameEngine* game)
 	{
 		window.clear();
@@ -579,7 +547,6 @@ private:
 				window.close();
 				return;
 			}
-
 			if (event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed)
 			{
 				if (!game->started)
@@ -636,8 +603,7 @@ private:
 		{
 			music.stop();
 
-		}
-		
+		}		
 	}
 
 public:
@@ -657,12 +623,10 @@ public:
 			processEvents(game);
 			if (!game->over && game->started && !game->paused) {
 				game->go();
-			}
-			
+			}			
 			render(game);			
 		}
-	}
-	
+	}	
 };
 
 Render* Render::instance = nullptr;
