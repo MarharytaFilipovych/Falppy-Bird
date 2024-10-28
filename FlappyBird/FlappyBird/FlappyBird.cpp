@@ -1,5 +1,7 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
+
 using namespace std;
 #include <vector>
 #include <string>
@@ -7,15 +9,15 @@ using namespace std;
 #include <memory>
 #define WINDOW_HEIGHT 800
 #define WINDOW_WIDTH 1400
-#define GRAVITY 0.005
-#define BIRD_HEIGHT 40 
-#define BIRD_WIDTH 40
-#define MIN_SPACE_BETWEEN_PIPES 150
-#define PIPE_MAX_HEIGHT 550
-#define PIPE_MIN_HEIGHT 100
-#define PIPE_MAX_WIDTH 150
+#define GRAVITY 0.005  
+#define BIRD_HEIGHT 60
+#define BIRD_WIDTH 60
+#define MIN_SPACE_BETWEEN_PIPES 200
+#define PIPE_MAX_HEIGHT 470
+#define PIPE_MIN_HEIGHT 120
+#define PIPE_MAX_WIDTH 100
 #define PIPE_MIN_WIDTH 70
-#define SOFT_PIPE_CHANCE  50
+#define SOFT_PIPE_CHANCE 50
 #define VELOCITY_Y 0
 #define VELOCITY_X -1
 #define JUMP -0.75
@@ -205,31 +207,36 @@ class GameEngine
 		static sf::Time lastUpdate = sf::seconds(0);
 		sf::Time elapsedTime = clock.getElapsedTime();
 
-		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 50)
+		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 10)
 		{
-			velocityX -= 0.25;
-			bird.updateVelocity(0.25);
+			velocityX -= 0.1;
+			bird.updateVelocity(0.1);
 			lastUpdate = elapsedTime;
+			timePipes += 0.5;
 		}
 	};
 
 
 	void generatePipes()
 	{
+		
+
 		int topPipeHeight = rand() % (PIPE_MAX_HEIGHT - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
 		int topY = 0;
 		int bottomPipeHeight = rand() % (PIPE_MAX_HEIGHT - topPipeHeight - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
 		int bottomY = WINDOW_HEIGHT - bottomPipeHeight - 1;
 		int width = rand() % (PIPE_MAX_WIDTH - PIPE_MIN_WIDTH + 1) + PIPE_MIN_WIDTH;
-
+		int space = WINDOW_HEIGHT - topPipeHeight - bottomPipeHeight;
+		cout << "Space:" << space << endl;
 		Pipe topPipe(topY, width, topPipeHeight, Top);
 		Pipe bottomPipe(bottomY, width, bottomPipeHeight, Bottom);
 		pipes.push_back(topPipe);
 		pipes.push_back(bottomPipe);
 	}
-
 	GameEngine() = default;
 
+
+	double timePipes = 0.5;
 public:
 
 	const vector<Pipe>& getPipes() const
@@ -255,14 +262,14 @@ public:
 		{
 			if (pipe.getType() == Top && bird.getY() - bird.getHeight() / 2 < pipeBottomY && !pipe.checkIfSoft())
 			{
-				cout << "Collision with a pipe, bird right x -  " << -bird.getWidth() / 2 <<", bird left x "<< bird.getX() + bird.getWidth()<< " pipe left x - " << pipeX << ", pipe right x" << pipeRightX << endl;
-				cout << "Collision with a top pipe, bird y -  " << bird.getY() << ", pipe bottom y - " << pipeBottomY << endl;
+				cout << "Collision: Bird Y < Top Pipe Bottom Y. Bird Y: " << bird.getY()
+					<< ", Pipe Bottom Y: " << pipeBottomY << endl;
 				return true;
 			}
 			if (pipe.getType() == Bottom && bird.getY() + bird.getHeight() / 2 > pipe.getY() && !pipe.checkIfSoft())
 			{
-				cout << "Collision with a pipe, bird x -  " << bird.getX() << ", pipe left x - " << pipeX << ", pipe right x" << pipeRightX << endl;
-				cout << "Collision with a bottom pipe, bird y -  " << bird.getY() << ", pipe top y - " << pipe.getY() << endl;
+				cout << "Collision: Bird Y > Bottom Pipe Y. Bird Y: " << bird.getY()
+					<< ", Pipe Y: " << pipe.getY() << endl;
 				return true;
 			}
 		}
@@ -271,8 +278,8 @@ public:
 
 	void go()
 	{
-		sf::Time currentTime = clock.getElapsedTime();
-		if (currentTime.asSeconds() - lastPipeSGenerated.asSeconds() >= 1)
+	  sf::Time currentTime = clock.getElapsedTime();
+		if (currentTime.asSeconds() - lastPipeSGenerated.asSeconds() >=timePipes)
 		{
 			generatePipes();
 			lastPipeSGenerated = currentTime;
@@ -329,6 +336,7 @@ public:
 		score.saveBestScore();
 		pipes.clear();
 		score = 0;
+		bird = Bird();
 		start();
 	}
 
@@ -363,7 +371,6 @@ public:
 	{
 		if (instance == nullptr)
 		{
-			srand(static_cast<unsigned>(time(0)));
 			instance = new GameEngine();
 		}
 		return instance;
@@ -381,8 +388,25 @@ private:
 	sf::Texture pipeTexture;
 	sf::Texture birdTexture;
 	sf::Font font;
+	sf::Texture backgroundTexture;
+	sf::SoundBuffer bufferForSquick;
+	sf::SoundBuffer overBuffer;
+	sf::Sound squick; 
+	sf::Sound overSound;
+	sf::Music music;
 
 	Render() : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Flappy Bird")
+	{
+		loadFiles();
+		overSound.setBuffer(overBuffer);
+
+		music.setLoop(true);
+
+		squick.setBuffer(bufferForSquick);
+		squick.setVolume(25);
+	}
+
+	void loadFiles()
 	{
 		if (!pipeTexture.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\pipe2.png")) {
 			cout << "The pipe image could not be loaded!" << endl;
@@ -393,9 +417,25 @@ private:
 		if (!font.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\Home Creative.otf"))
 		{
 			cout << "The font could not be loaded!" << endl;
+		}
+		if (!backgroundTexture.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\R.jpg"))
+		{
+			cout << "The background could not be loaded!" << endl;
+		}
+		if (!bufferForSquick.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\squick.ogg")) {
+			cout << "Squick sound could not be loaded!" << endl;
+		}
+		if (!music.openFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\song.ogg"))
+		{
+			cout << "Music could not be loaded!" << endl;
 
 		}
+		if (!overBuffer.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\explosion.wav")) {
+			cout << "Game over sound could not be loaded!" << endl;
+			return;
+		}
 	}
+
 	const pair<float, float> getScaleFactors(const sf::Texture& texture, const Entity& entity)const
 	{
 		float desiredWidth = static_cast<float>(entity.getWidth());
@@ -428,7 +468,6 @@ private:
 		}
 		pipe_shape.setScale(scale.first, scale.second);
 		window.draw(pipe_shape);
-		cout << "drawing pipe" << endl;
 
 	}
 
@@ -443,6 +482,14 @@ private:
 	}
 	void manageWindow()
 	{
+		Entity background_entity(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+		sf::Sprite background;
+		background.setTexture(backgroundTexture);
+		pair<float, float> scale = getScaleFactors(backgroundTexture, background_entity);
+		background.setScale(scale.first, scale.second);
+		background.setPosition(0, 0);
+		window.draw(background);
+
 
 	}
 	void applyStylesToText(sf::Text& text)
@@ -469,20 +516,24 @@ private:
 		scoreMessage.setPosition(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 6 + 90));
 	    window.draw(gameOverMessage);
 		window.draw(scoreMessage);
-
 	}
+	
 
 	void render(GameEngine* game)
 	{
 		window.clear();
+		manageWindow();
 		drawBird(game->getBird());
 		for (const Pipe& pipe : game->getPipes())
 		{
-			drawPipe(pipe);
-		}
+			drawPipe(pipe);	
+}
 		if (game->over)
 		{
 			displayGameOver(game);
+			overSound.setVolume(15);
+			//overSound.play();
+
 		}
 		window.display();
 	}
@@ -502,7 +553,8 @@ private:
 				if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
 				{
 					game->start();
-
+					music.setLoop(true);
+					music.play();
 				}
 
 			}
@@ -511,6 +563,11 @@ private:
 				if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
 				{
 					game->flap();
+					if (!game->over)
+					{
+						squick.play();
+					}
+					
 				}
 			}
 			else if (event.type == sf::Event::KeyReleased)
@@ -522,7 +579,11 @@ private:
 
 			}
 		}
-
+		if (game->over)
+		{
+			music.stop();
+			
+		}
 	};
 public:
 
@@ -536,16 +597,19 @@ public:
 
 	void launch(GameEngine* game)
 	{
-		while (window.isOpen()&&!game->over)
+		while (window.isOpen())
 		{
 			processEvents(game);
-			if (!game->over && game->started)
-			{
+			if (!game->over && game->started) {
 				game->go();
-
 			}
-			render(game);
+			
+			render(game);			
 		}
+	}
+	void playSound()
+	{
+		overSound.play();
 
 	}
 };
@@ -556,9 +620,9 @@ Render* Render::instance = nullptr;
 
 int main()
 {
+	srand(static_cast<unsigned>(time(0)));  
 	GameEngine* gameEngine = GameEngine::getInstance();
 	Render* render = Render::getInstance();
-
 	render->launch(gameEngine);
 	return 0;
 }
