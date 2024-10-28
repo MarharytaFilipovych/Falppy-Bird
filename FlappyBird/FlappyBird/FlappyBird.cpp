@@ -1,7 +1,6 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
-
 using namespace std;
 #include <vector>
 #include <string>
@@ -20,7 +19,7 @@ using namespace std;
 #define SOFT_PIPE_CHANCE 50
 #define VELOCITY_Y 0
 #define VELOCITY_X -1
-#define JUMP -0.75
+#define JUMP -0.5
 class Entity
 {
 protected:
@@ -182,7 +181,6 @@ public:
 		}
 		file << currentScore;
 		file.close();
-
 	}
 
 	const double getBestScore()const
@@ -191,6 +189,7 @@ public:
 
 	}
 };
+
 
 class GameEngine
 {
@@ -207,7 +206,7 @@ class GameEngine
 		static sf::Time lastUpdate = sf::seconds(0);
 		sf::Time elapsedTime = clock.getElapsedTime();
 
-		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 10)
+		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 20)
 		{
 			velocityX -= 0.1;
 			bird.updateVelocity(0.1);
@@ -330,6 +329,10 @@ public:
 
 	bool over = false;
 	bool started = false;
+	bool paused = false;
+
+
+
 
 	void reset()
 	{
@@ -471,6 +474,19 @@ private:
 
 	}
 
+	void displayPaused()
+	{
+		sf::CircleShape triangle(80.f, 3);
+		triangle.setFillColor(sf::Color::White);
+		triangle.setOutlineColor(sf::Color::Blue);
+		triangle.setOutlineThickness(5.f);
+		triangle.setRotation(90.f);
+		triangle.setOrigin(triangle.getRadius(), triangle.getRadius() * (1.0f / sqrt(3.0f)));
+		triangle.setPosition(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2));
+		window.draw(triangle);
+
+	}
+
 	void drawBird(const Bird& bird) 
 	{
 		sf::Sprite bird_shape;
@@ -516,9 +532,21 @@ private:
 		scoreMessage.setPosition(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 6 + 90));
 	    window.draw(gameOverMessage);
 		window.draw(scoreMessage);
+		
 	}
 	
-
+	void displayPoints(GameEngine* game)
+	{
+		if (!game->over)
+		{
+			sf::Text points;
+			points.setString(to_string(static_cast<int>(game->getScore().getScore())));
+			applyStylesToText(points);
+			points.setPosition(sf::Vector2f(50.f, 10.f));
+			window.draw(points);
+		}
+		
+	}
 	void render(GameEngine* game)
 	{
 		window.clear();
@@ -527,13 +555,16 @@ private:
 		for (const Pipe& pipe : game->getPipes())
 		{
 			drawPipe(pipe);	
-}
+		}
+		displayPoints(game);
 		if (game->over)
 		{
 			displayGameOver(game);
-			overSound.setVolume(15);
-			//overSound.play();
 
+		}
+		else if (game->paused)
+		{
+			displayPaused();
 		}
 		window.display();
 	}
@@ -541,50 +572,74 @@ private:
 	void processEvents(GameEngine* game)
 	{
 		sf::Event event;
-		while (window.pollEvent(event) && !game->over)
+		while (window.pollEvent(event))
 		{
 			if (event.type == sf::Event::Closed)
 			{
-				game->Over();
 				window.close();
+				return;
 			}
-			else if ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed) && !game->started)
-			{
-				if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
-				{
-					game->start();
-					music.setLoop(true);
-					music.play();
-				}
 
-			}
-			else if ((event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyReleased) && game->started)
+			if (event.type == sf::Event::MouseButtonPressed || event.type == sf::Event::KeyPressed)
 			{
-				if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
+				if (!game->started)
 				{
-					game->flap();
-					if (!game->over)
+					if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
 					{
-						squick.play();
+						game->start();
+						music.setLoop(true);
+						music.play();
 					}
-					
 				}
-			}
-			else if (event.type == sf::Event::KeyReleased)
-			{
-				if (event.key.code == sf::Keyboard::R)
+				else if (game->paused)
 				{
-					game->reset();
+					if (event.mouseButton.button == sf::Mouse::Right || event.key.code == sf::Keyboard::R)
+					{
+						game->paused = false;
+						music.play();
+						game->reset();
+					}
+					else if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
+					{
+						game->paused = false;
+						music.play();
+					}
 				}
-
+				else if (game->over)
+				{
+					if (event.mouseButton.button == sf::Mouse::Right || event.key.code == sf::Keyboard::Space)
+					{
+						game->over = false;
+						music.play();
+						game->reset();
+					}
+				}
+				else 
+				{
+					if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
+					{
+						game->flap();
+						if (!game->over)
+						{
+							squick.play();
+						}
+					}
+					else if (event.mouseButton.button == sf::Mouse::Right || event.key.code == sf::Keyboard::P)
+					{
+						game->paused = true;
+						music.stop();
+					}
+				}
 			}
 		}
 		if (game->over)
 		{
 			music.stop();
-			
+
 		}
-	};
+		
+	}
+
 public:
 
 	static Render* getInstance() {
@@ -600,18 +655,14 @@ public:
 		while (window.isOpen())
 		{
 			processEvents(game);
-			if (!game->over && game->started) {
+			if (!game->over && game->started && !game->paused) {
 				game->go();
 			}
 			
 			render(game);			
 		}
 	}
-	void playSound()
-	{
-		overSound.play();
-
-	}
+	
 };
 
 Render* Render::instance = nullptr;
