@@ -573,7 +573,19 @@ private:
 		}
 		window.display();
 	}
-	
+	bool checkIfClicked(sf::Sprite& shape)
+	{
+		sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window)); // Convert to world coordinates
+		if (shape.getGlobalBounds().contains(mousePos))
+		{
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	void processEvents(GameEngine* game)
 	{
 		sf::Event event;
@@ -588,22 +600,22 @@ private:
 			{
 				if (!game->started)
 				{
-					//if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
-					//{
+					if (checkIfClicked(play_shape) || event.key.code == sf::Keyboard::Space)
+					{
 						game->start();
 						music.setLoop(true);
 						music.play();
-					//}
+					}
 				}
 				else if (game->paused)
 				{
-					if (event.mouseButton.button == sf::Mouse::Right || event.key.code == sf::Keyboard::R)
+					if (checkIfClicked(restart_shape) || event.key.code == sf::Keyboard::R)
 					{
 						game->paused = false;
 						music.play();
 						game->reset();
 					}
-					else if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
+					else if (checkIfClicked(play_shape) || event.key.code == sf::Keyboard::Space)
 					{
 						game->paused = false;
 						music.play();
@@ -611,7 +623,7 @@ private:
 				}
 				else if (game->over)
 				{
-					if (event.mouseButton.button == sf::Mouse::Right || event.key.code == sf::Keyboard::Space)
+					if (checkIfClicked(restart_shape) || event.key.code == sf::Keyboard::Space)
 					{
 						game->over = false;
 						music.play();
