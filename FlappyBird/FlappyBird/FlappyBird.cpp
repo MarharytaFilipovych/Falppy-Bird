@@ -369,6 +369,8 @@ private:
 	sf::RenderWindow window;
 	sf::Texture pipeTexture;
 	sf::Texture birdTexture;
+	sf::Texture restartTexture;
+	sf::Texture playTexture;
 	sf::Font font;
 	sf::Texture backgroundTexture;
 	sf::SoundBuffer bufferForSquick;
@@ -376,6 +378,9 @@ private:
 	sf::Sound squick; 
 	sf::Sound overSound;
 	sf::Music music;
+	sf::CircleShape triangle;
+	sf::Sprite restart_shape;
+	sf::Sprite play_shape;
 
 	Render() : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Flappy Bird")
 	{
@@ -394,6 +399,12 @@ private:
 		if (!birdTexture.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\im.png")) {
 			cout << "The bird image could not be loaded!" << endl;
 		}
+		if (!playTexture.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\play.png")) {
+			cout << "The play image could not be loaded!" << endl;
+		}
+		if (!restartTexture.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\restart.png")) {
+			cout << "The restart image could not be loaded!" << endl;
+		}
 		if (!font.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\Home Creative.otf"))
 		{
 			cout << "The font could not be loaded!" << endl;
@@ -409,7 +420,7 @@ private:
 		{
 			cout << "Music could not be loaded!" << endl;
 		}
-		if (!overBuffer.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\explosion.wav")) {
+		if (!overBuffer.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\death.wav")) {
 			cout << "Game over sound could not be loaded!" << endl;
 		}
 	}
@@ -423,6 +434,26 @@ private:
 		float scaleX = desiredWidth / originalWidth;
 		float scaleY = desiredHeight / originalHeight;
 		return { scaleX, scaleY };
+	}
+
+	void processSignPicture(sf::Sprite& image, sf::Texture&  texture)
+	{
+		image.setTexture(texture);
+		sf::FloatRect bounds = image.getLocalBounds();
+		image.setOrigin(bounds.width / 2, bounds.height / 2);
+		pair<float, float> scale = getScaleFactors(texture, Entity(0, 0, 160, 160));
+		image.setScale(scale.first, scale.second);
+	}
+
+	void displayPaused()
+	{
+		play_shape.setPosition(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 2);
+		processSignPicture(play_shape, playTexture);
+		restart_shape.setPosition(WINDOW_WIDTH / 2 + 100, WINDOW_HEIGHT / 2);
+		processSignPicture(restart_shape, restartTexture);
+		triangle.setPosition(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+		window.draw(play_shape);
+		window.draw(restart_shape);
 	}
 
 	void drawPipe(const Pipe& pipe) 
@@ -446,16 +477,11 @@ private:
 		window.draw(pipe_shape);
 	}
 
-	void displayPaused()
+	void displayAtStart()
 	{
-		sf::CircleShape triangle(80.f, 3);
-		triangle.setFillColor(sf::Color::White);
-		triangle.setOutlineColor(sf::Color::Blue);
-		triangle.setOutlineThickness(5.f);
-		triangle.setRotation(90.f);
-		triangle.setOrigin(triangle.getRadius(), triangle.getRadius() * (1.0f / sqrt(3.0f)));
-		triangle.setPosition(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2));
-		window.draw(triangle);
+		processSignPicture(play_shape, playTexture);
+		play_shape.setPosition(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+		window.draw(play_shape);
 	}
 
 	void drawBird(const Bird& bird) 
@@ -502,7 +528,14 @@ private:
 	    window.draw(gameOverMessage);
 		window.draw(scoreMessage);	
 	}
-	
+
+	void drawRestart()
+	{	
+		processSignPicture(restart_shape, restartTexture);
+		restart_shape.setPosition(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 6 + 380);
+		window.draw(restart_shape);
+	}
+
 	void displayPoints(GameEngine* game)
 	{
 		if (!game->over)
@@ -528,7 +561,11 @@ private:
 		if (game->over)
 		{
 			displayGameOver(game);
-
+			drawRestart();
+		}
+		else if  (!game->started)
+		{
+			displayAtStart();
 		}
 		else if (game->paused)
 		{
@@ -551,12 +588,12 @@ private:
 			{
 				if (!game->started)
 				{
-					if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
-					{
+					//if (event.mouseButton.button == sf::Mouse::Left || event.key.code == sf::Keyboard::Space)
+					//{
 						game->start();
 						music.setLoop(true);
 						music.play();
-					}
+					//}
 				}
 				else if (game->paused)
 				{
@@ -627,6 +664,13 @@ public:
 			render(game);			
 		}
 	}	
+
+	~Render() {
+		music.stop();
+		squick.stop();
+		overSound.stop();
+	}
+
 };
 
 Render* Render::instance = nullptr;
