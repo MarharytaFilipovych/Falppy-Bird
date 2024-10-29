@@ -11,8 +11,8 @@ using namespace std;
 #define GRAVITY 0.005  
 #define BIRD_HEIGHT 60
 #define BIRD_WIDTH 60
-#define MIN_SPACE_BETWEEN_PIPES 200
-#define PIPE_MAX_HEIGHT 470
+#define MIN_SPACE_BETWEEN_PIPES 250
+#define PIPE_MAX_HEIGHT 420
 #define PIPE_MIN_HEIGHT 120
 #define PIPE_MAX_WIDTH 100
 #define PIPE_MIN_WIDTH 70
@@ -199,20 +199,7 @@ class GameEngine
 	Score score;
 	double velocityX = VELOCITY_X;
 	sf::Time lastPipeSGenerated;
-
-	void increaseSpeed()
-	{
-		static sf::Time lastUpdate = sf::seconds(0);
-		sf::Time elapsedTime = clock.getElapsedTime();
-		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 20)
-		{
-			velocityX -= 0.1;
-			bird.updateVelocity(0.1);
-			lastUpdate = elapsedTime;
-			timePipes += 0.5;
-		}
-	}
-
+	double timePipes = 2;
 	void generatePipes()
 	{
 		int topPipeHeight = rand() % (PIPE_MAX_HEIGHT - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
@@ -228,7 +215,6 @@ class GameEngine
 	}
 
 	GameEngine() = default;
-	double timePipes = 0.5;
 
 	bool collisionCanvas()const
 	{
@@ -263,10 +249,15 @@ public:
 		return pipes;
 	}
 
+	void decreaseTimePipes(const double time)
+	{
+		timePipes -= time;
+	}
+
 	void go()
 	{
 	  sf::Time currentTime = clock.getElapsedTime();
-		if (currentTime.asSeconds() - lastPipeSGenerated.asSeconds() >=timePipes)
+		if (currentTime.asSeconds() - lastPipeSGenerated.asSeconds() >= 2)
 		{
 			generatePipes();
 			lastPipeSGenerated = currentTime;
@@ -381,6 +372,8 @@ private:
 	sf::CircleShape triangle;
 	sf::Sprite restart_shape;
 	sf::Sprite play_shape;
+	sf::Clock clock;
+	float FPS = 200.f;
 
 	Render() : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Flappy Bird")
 	{
@@ -660,6 +653,20 @@ private:
 		}		
 	}
 
+	void managegameSpeed(GameEngine* game)
+	{
+		static sf::Time lastUpdate = sf::seconds(0);
+		sf::Time elapsedTime = clock.getElapsedTime();
+
+		if (elapsedTime.asSeconds() - lastUpdate.asSeconds() >= 15)
+		{
+			FPS += 70.0f; 
+			window.setFramerateLimit(FPS);
+			game->decreaseTimePipes(0.2);
+			lastUpdate = elapsedTime; 
+		}
+	}
+
 public:
 
 	static Render* getInstance() {
@@ -672,11 +679,12 @@ public:
 
 	void launch(GameEngine* game)
 	{
+		window.setFramerateLimit(FPS);
 		while (window.isOpen())
 		{
+			managegameSpeed(game);
 			checkIfClicked(restart_shape);
 			checkIfClicked(play_shape);
-
 			processEvents(game);
 			if (!game->over && game->started && !game->paused) {
 				game->go();
