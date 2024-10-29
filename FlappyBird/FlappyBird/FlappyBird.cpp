@@ -575,13 +575,18 @@ private:
 	}
 	bool checkIfClicked(sf::Sprite& shape)
 	{
-		sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window)); // Convert to world coordinates
+		sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window)); 
 		if (shape.getGlobalBounds().contains(mousePos))
 		{
+			shape.setColor(sf::Color::Blue);
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
 			{
 				return true;
 			}
+		}
+		else
+		{
+			shape.setColor(sf::Color::White);
 		}
 		return false;
 	}
@@ -625,6 +630,7 @@ private:
 				{
 					if (checkIfClicked(restart_shape) || event.key.code == sf::Keyboard::Space)
 					{
+						overSound.stop();
 						game->over = false;
 						music.play();
 						game->reset();
@@ -651,7 +657,6 @@ private:
 		if (game->over)
 		{
 			music.stop();
-
 		}		
 	}
 
@@ -669,6 +674,9 @@ public:
 	{
 		while (window.isOpen())
 		{
+			checkIfClicked(restart_shape);
+			checkIfClicked(play_shape);
+
 			processEvents(game);
 			if (!game->over && game->started && !game->paused) {
 				game->go();
@@ -677,10 +685,8 @@ public:
 		}
 	}	
 
-	~Render() {
-		music.stop();
+	void clean() {
 		squick.stop();
-		overSound.stop();
 	}
 
 };
@@ -695,5 +701,6 @@ int main()
 	GameEngine* gameEngine = GameEngine::getInstance();
 	Render* render = Render::getInstance();
 	render->launch(gameEngine);
+	render->clean();
 	return 0;
 }
