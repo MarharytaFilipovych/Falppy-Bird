@@ -251,13 +251,17 @@ public:
 
 	void decreaseTimePipes(const double time)
 	{
+		if (time == 0.1)
+		{
+			return;
+		}
 		timePipes -= time;
 	}
 
 	void go()
 	{
 	  sf::Time currentTime = clock.getElapsedTime();
-		if (currentTime.asSeconds() - lastPipeSGenerated.asSeconds() >= 2)
+		if (currentTime.asSeconds() - lastPipeSGenerated.asSeconds() >= timePipes)
 		{
 			generatePipes();
 			lastPipeSGenerated = currentTime;
@@ -612,6 +616,7 @@ private:
 						game->paused = false;
 						music.play();
 						game->reset();
+						game->decreaseTimePipes(2);
 					}
 					else if (checkIfClicked(play_shape) || event.key.code == sf::Keyboard::Space)
 					{
