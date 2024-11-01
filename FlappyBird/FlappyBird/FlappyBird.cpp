@@ -53,6 +53,7 @@ public:
 		return height;
 	}
 
+
 };
 
 enum PipeType {
@@ -104,32 +105,7 @@ public:
 	}
 };
 
-class Bird : public Entity
-{
-	double velocityY = VELOCITY_Y;
 
-public:
-	Bird() : Entity(WINDOW_WIDTH / 5, WINDOW_HEIGHT / 2, BIRD_WIDTH, BIRD_HEIGHT) {}
-
-	void flapWings()
-	{
-		velocityY = JUMP;
-	}
-
-	void updatePosition()
-	{
-		y += velocityY;
-	}
-
-	void updateVelocity(const double value)
-	{
-		velocityY += value;
-	}
-	void setVelocity(const double value)
-	{
-		velocityY = value;
-	}
-};
 
 class Score
 {
@@ -189,9 +165,91 @@ public:
 		return getPreviousBestScore() > currentScore ? getPreviousBestScore() : currentScore;
 	}
 };
+class Heart : public Entity
+{
+	static const int definePositionY()
+	{
+		int y = rand() % (WINDOW_HEIGHT - 160) + 80; 
+		return y;
+	}
 
+	bool caught = false;
+public:
+
+	Heart() :Entity(WINDOW_WIDTH, definePositionY(), BIRD_WIDTH, BIRD_HEIGHT) {}
+
+	
+	bool isCaught() const 
+	{ 
+		return caught; 
+	}
+
+	void markAsCaught() 
+	{ 
+		caught = true; 
+	}
+
+	void updatePostion(const double value)
+	{
+		x += value;
+	}
+
+
+
+
+
+};
+
+class Bird : public Entity
+{
+	double velocityY = VELOCITY_Y;
+	vector<Heart> hearts;
+public:
+	Bird() : Entity(WINDOW_WIDTH / 5, WINDOW_HEIGHT / 2, BIRD_WIDTH, BIRD_HEIGHT) {}
+
+	void flapWings()
+	{
+		velocityY = JUMP;
+	}
+
+	void updatePosition()
+	{
+		y += velocityY;
+	}
+
+	void updateVelocity(const double value)
+	{
+		velocityY += value;
+	}
+	void setVelocity(const double value)
+	{
+		velocityY = value;
+	}
+	void addHeart(const Heart& heart)
+	{
+		if (hearts.size() < 3)
+		{
+			hearts.push_back(heart);
+		}
+	}
+	void deleteHeart()
+	{
+		hearts.pop_back();
+	}
+	const int getCounter()const
+	{
+		return hearts.size();
+	}
+	const vector<Heart>& getLives()const
+	{
+		return hearts;
+	}
+
+
+};
 class GameEngine
 {
+	vector<Heart> hearts;
 	static GameEngine* instance;
 	sf::Clock clock;
 	vector<Pipe> pipes;
@@ -199,7 +257,10 @@ class GameEngine
 	Score score;
 	double velocityX = VELOCITY_X;
 	sf::Time lastPipeSGenerated;
-	double timePipes = 2;
+	double timePipes = 3;
+	sf::Time lastHeartGenerated;
+	
+
 	void generatePipes()
 	{
 		int topPipeHeight = rand() % (PIPE_MAX_HEIGHT - PIPE_MIN_HEIGHT + 1) + PIPE_MIN_HEIGHT;
@@ -228,16 +289,32 @@ class GameEngine
 		const int pipeRightX = pipe.getX() + pipe.getWidth();
 		const int pipeBottomY = pipeY + pipe.getHeight();
 		if (bird.getX() - bird.getWidth() / 2 <= pipeRightX &&
-			bird.getX() + bird.getWidth() / 2 >= pipe.getX())
+			bird.getX() + bird.getWidth() / 2 >= pipe.getX() )
 		{
-			if (pipe.getType() == Top && bird.getY() - bird.getHeight() / 2 < pipeBottomY && !pipe.checkIfSoft())
+			if (pipe.getType() == Top && bird.getY() - bird.getHeight() / 2 < pipeBottomY)
 			{
 				return true;
 			}
-			if (pipe.getType() == Bottom && bird.getY() + bird.getHeight() / 2 > pipe.getY() && !pipe.checkIfSoft())
+			if (pipe.getType() == Bottom && bird.getY() + bird.getHeight() / 2 > pipe.getY())
 			{
 				return true;
 			}
+		}
+		return false;
+
+	}
+
+	
+	bool checkBirdCatch( Heart& heart) const 
+	{
+		if (!heart.isCaught() &&
+			bird.getX() + bird.getWidth() / 2 >= heart.getX() &&
+			bird.getX() - bird.getWidth() / 2 <= heart.getX() + heart.getWidth() &&
+			bird.getY() + bird.getHeight() / 2 >= heart.getY() &&
+			bird.getY() - bird.getHeight() / 2 <= heart.getY() + heart.getHeight())
+		{
+			heart.markAsCaught();
+			return true;
 		}
 		return false;
 	}
@@ -248,6 +325,10 @@ public:
 	{
 		return pipes;
 	}
+	const vector<Heart>& getHearts() const
+	{
+		return hearts;
+	}
 
 	void decreaseTimePipes(const double time)
 	{
@@ -256,6 +337,11 @@ public:
 			return;
 		}
 		timePipes -= time;
+	}
+	void generateHearts()
+	{
+		Heart heart;
+		hearts.push_back(heart);
 	}
 
 	void go()
@@ -266,34 +352,58 @@ public:
 			generatePipes();
 			lastPipeSGenerated = currentTime;
 		}
+		if (bird.getCounter() < 3 && currentTime.asSeconds() - lastHeartGenerated.asSeconds() >= 7) {
+			generateHearts();
+			lastHeartGenerated = currentTime;
+		}
 		bird.updateVelocity(GRAVITY);
 		bird.updatePosition();
 		if (collisionCanvas())
-		{
+		{		
 			Over();
 			return;
 		}
-		for (Pipe& pipe : pipes)
+		for (auto heart = hearts.begin(); heart != hearts.end(); ) 
 		{
-			pipe.updatePosition(velocityX);
-			if (collisionPipe(pipe))
+			heart->updatePostion(velocityX); 
+			if (checkBirdCatch(*heart)) { 
+				bird.addHeart(*heart); 
+				heart = hearts.erase(heart); 
+			}
+			else {
+				heart++; 
+			}
+		}
+		for (auto pipe = pipes.begin(); pipe != pipes.end();)
+		{
+			pipe->updatePosition(velocityX);
+			if (!pipe->checkIfSoft() && collisionPipe(*pipe) && !pipe->checkIfPassed())
 			{
-				cout << pipe.getX() << endl;
-
-				if (!pipe.checkIfSoft())
+				if (bird.getCounter() > 0)
+				{
+					bird.deleteHeart();
+					pipe->makePassed();
+					pipe = pipes.erase(pipe);
+					score += 0.5;
+				}
+				else
 				{
 					Over();
 					return;
 				}
 			}
-			else if (!pipe.checkIfPassed() && bird.getX() > pipe.getX() + pipe.getWidth())
+			else if (!pipe->checkIfPassed() && bird.getX() > pipe->getX() + pipe->getWidth())
 			{
-				cout << pipe.getX() << endl;
-
-				pipe.makePassed();
+				pipe->makePassed();
 				score += 0.5;
+				pipe++; 
+			}
+			else
+			{
+			pipe++;
 			}
 		}
+
 	}
 
 	void start()
@@ -313,9 +423,12 @@ public:
 	{
 		score.saveBestScore();
 		pipes.clear();
+		hearts.clear();
 		score = 0;
 		bird = Bird();
 		start();
+		timePipes = 3;
+
 	}
 
 	void flap()
@@ -325,15 +438,16 @@ public:
 		if (collisionCanvas())
 		{
 			over = true;
-			cout << "coliision with canvas" << endl;
 		}
 	}
 
 	void Over()
 	{
-		over = true;
-		score.saveBestScore();
+		over = true; 
+		score.saveBestScore(); 
+		
 	}
+
 
 	const Bird& getBird()const
 	{
@@ -366,12 +480,13 @@ private:
 	sf::Texture birdTexture;
 	sf::Texture restartTexture;
 	sf::Texture playTexture;
+	sf::Texture heartTexture;
 	sf::Font font;
 	sf::Texture backgroundTexture;
 	sf::SoundBuffer bufferForSquick;
-	sf::SoundBuffer overBuffer;
+	sf::SoundBuffer heartBuffer;
 	sf::Sound squick; 
-	sf::Sound overSound;
+	sf::Sound heartSound;
 	sf::Music music;
 	sf::CircleShape triangle;
 	sf::Sprite restart_shape;
@@ -382,10 +497,10 @@ private:
 	Render() : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Flappy Bird")
 	{
 		loadFiles();
-		overSound.setBuffer(overBuffer);
 		music.setLoop(true);
 		squick.setBuffer(bufferForSquick);
 		squick.setVolume(25);
+		heartSound.setVolume(30);
 	}
 
 	void loadFiles()
@@ -417,7 +532,11 @@ private:
 		{
 			cout << "Music could not be loaded!" << endl;
 		}
-		if (!overBuffer.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\death.wav")) {
+	
+		if (!heartTexture.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\heart.png")) {
+			cout << "The heart image could not be loaded!" << endl;
+		}
+		if (!heartBuffer.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\complete.ogg")) {
 			cout << "Game over sound could not be loaded!" << endl;
 		}
 	}
@@ -432,6 +551,32 @@ private:
 		float scaleY = desiredHeight / originalHeight;
 		return { scaleX, scaleY };
 	}
+
+	sf::Sprite drawHeart(const Heart& heart) {
+		sf::Sprite heart_shape;
+		heart_shape.setTexture(heartTexture);
+		pair<float, float> scale = getScaleFactors(heartTexture, heart);
+		heart_shape.setScale(scale.first, scale.second);
+		heart_shape.setPosition(heart.getX(), heart.getY());
+		return heart_shape;
+	}
+
+	void drawHeartAtTop(const vector<Heart>& hearts)
+	{
+		int value = 20;
+		for (const Heart& heart : hearts)
+		{
+			sf::Sprite heart_shape = drawHeart(heart);
+			heart_shape.setColor(sf::Color::White);
+			pair<float, float> scale = getScaleFactors(heartTexture, heart);
+			heart_shape.setScale(scale.first * 0.5f, scale.second * 0.5f);
+			heart_shape.setPosition(WINDOW_WIDTH - value - heart.getWidth(), 20);
+			value += 20 + heart.getWidth();
+			window.draw(heart_shape);
+		}
+	}
+
+
 
 	void processSignPicture(sf::Sprite& image, sf::Texture&  texture)
 	{
@@ -549,12 +694,25 @@ private:
 	{
 		window.clear();
 		manageWindow();
-		drawBird(game->getBird());
-		for (const Pipe& pipe : game->getPipes())
+		if (game->started)
 		{
-			drawPipe(pipe);	
+			drawBird(game->getBird());
+			for (const Pipe& pipe : game->getPipes())
+			{
+				drawPipe(pipe);
+			}
+			if (!game->getHearts().empty()) {
+				for (const Heart& heart : game->getHearts()) 
+				{
+					window.draw(drawHeart(heart));
+					
+					
+				}
+			}
+
+			drawHeartAtTop(game->getBird().getLives());
+			displayPoints(game);
 		}
-		displayPoints(game);
 		if (game->over)
 		{
 			displayGameOver(game);
@@ -616,7 +774,6 @@ private:
 						game->paused = false;
 						music.play();
 						game->reset();
-						game->decreaseTimePipes(2);
 					}
 					else if (checkIfClicked(play_shape) || event.key.code == sf::Keyboard::Space)
 					{
@@ -628,9 +785,9 @@ private:
 				{
 					if (checkIfClicked(restart_shape) || event.key.code == sf::Keyboard::Space)
 					{
-						overSound.stop();
 						game->over = false;
 						music.play();
+						FPS = 200.f;
 						game->reset();
 					}
 				}
@@ -667,7 +824,7 @@ private:
 		{
 			FPS += 70.0f; 
 			window.setFramerateLimit(FPS);
-			game->decreaseTimePipes(0.2);
+			game->decreaseTimePipes(0.4);
 			lastUpdate = elapsedTime; 
 		}
 	}
