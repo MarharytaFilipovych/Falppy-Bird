@@ -52,8 +52,6 @@ public:
 	{
 		return height;
 	}
-
-
 };
 
 enum PipeType {
@@ -104,8 +102,6 @@ public:
 		return passed;
 	}
 };
-
-
 
 class Score
 {
@@ -165,6 +161,8 @@ public:
 		return getPreviousBestScore() > currentScore ? getPreviousBestScore() : currentScore;
 	}
 };
+
+
 class Heart : public Entity
 {
 	static const int definePositionY()
@@ -244,9 +242,8 @@ public:
 	{
 		return hearts;
 	}
-
-
 };
+
 class GameEngine
 {
 	vector<Heart> hearts;
@@ -258,8 +255,8 @@ class GameEngine
 	double velocityX = VELOCITY_X;
 	sf::Time lastPipeSGenerated;
 	double timePipes = 3;
+	double timeHearts = 4;
 	sf::Time lastHeartGenerated;
-	
 
 	void generatePipes()
 	{
@@ -304,7 +301,6 @@ class GameEngine
 
 	}
 
-	
 	bool checkBirdCatch( Heart& heart) const 
 	{
 		if (!heart.isCaught() &&
@@ -319,61 +315,49 @@ class GameEngine
 		return false;
 	}
 
-public:
-
-	const vector<Pipe>& getPipes() const
-	{
-		return pipes;
-	}
-	const vector<Heart>& getHearts() const
-	{
-		return hearts;
-	}
-
-	void decreaseTimePipes(const double time)
-	{
-		if (time == 0.1)
-		{
-			return;
-		}
-		timePipes -= time;
-	}
 	void generateHearts()
 	{
 		Heart heart;
 		hearts.push_back(heart);
 	}
 
-	void go()
+	void add_hearts(sf::Time& currentTime)
 	{
-	  sf::Time currentTime = clock.getElapsedTime();
 		if (currentTime.asSeconds() - lastPipeSGenerated.asSeconds() >= timePipes)
 		{
 			generatePipes();
 			lastPipeSGenerated = currentTime;
 		}
-		if (bird.getCounter() < 3 && currentTime.asSeconds() - lastHeartGenerated.asSeconds() >= 7) {
+	}
+	void add_pipes(sf::Time& currentTime)
+	{
+		if (bird.getCounter() < 3 && currentTime.asSeconds() - lastHeartGenerated.asSeconds() >= timeHearts) {
 			generateHearts();
 			lastHeartGenerated = currentTime;
 		}
-		bird.updateVelocity(GRAVITY);
-		bird.updatePosition();
-		if (collisionCanvas())
-		{		
-			Over();
-			return;
-		}
-		for (auto heart = hearts.begin(); heart != hearts.end(); ) 
+	}
+
+	void manage_hearts()
+	{
+		for (auto heart = hearts.begin(); heart != hearts.end(); )
 		{
-			heart->updatePostion(velocityX); 
-			if (checkBirdCatch(*heart)) { 
-				bird.addHeart(*heart); 
-				heart = hearts.erase(heart); 
+			heart->updatePostion(velocityX);
+			if (checkBirdCatch(*heart)) {
+				bird.addHeart(*heart);
+				heart = hearts.erase(heart);
+			}
+			else if (heart->getX() + heart->getWidth() < 0) 
+			{
+				heart = hearts.erase(heart);
 			}
 			else {
-				heart++; 
+				heart++;
 			}
 		}
+	}
+
+	void manage_pipes()
+	{
 		for (auto pipe = pipes.begin(); pipe != pipes.end();)
 		{
 			pipe->updatePosition(velocityX);
@@ -396,14 +380,58 @@ public:
 			{
 				pipe->makePassed();
 				score += 0.5;
-				pipe++; 
+				pipe++;
 			}
 			else
 			{
-			pipe++;
+				if (pipe->getX() + pipe->getWidth() < 0)
+				{
+					pipe = pipes.erase(pipe);
+				}
+				else
+				{
+					pipe++;
+				}
 			}
 		}
+	}
 
+public:
+
+	const vector<Pipe>& getPipes() const
+	{
+		return pipes;
+	}
+
+	const vector<Heart>& getHearts() const
+	{
+		return hearts;
+	}
+
+	void decreaseTimePipesHearts(const double time)
+	{
+		if (time == 0.1)
+		{
+			return;
+		}
+		timeHearts += time;
+		timePipes -= time;
+	}
+
+	void go()
+	{
+	    sf::Time currentTime = clock.getElapsedTime();
+		add_pipes(currentTime);
+		add_hearts(currentTime);
+		bird.updateVelocity(GRAVITY);
+		bird.updatePosition();
+		if (collisionCanvas())
+		{		
+			Over();
+			return;
+		}
+		manage_hearts();
+		manage_pipes();
 	}
 
 	void start()
@@ -421,14 +449,13 @@ public:
 
 	void reset()
 	{
+		timePipes = 3;
 		score.saveBestScore();
 		pipes.clear();
 		hearts.clear();
 		score = 0;
 		bird = Bird();
 		start();
-		timePipes = 3;
-
 	}
 
 	void flap()
@@ -447,7 +474,6 @@ public:
 		score.saveBestScore(); 
 		
 	}
-
 
 	const Bird& getBird()const
 	{
@@ -486,7 +512,6 @@ private:
 	sf::SoundBuffer bufferForSquick;
 	sf::SoundBuffer heartBuffer;
 	sf::Sound squick; 
-	sf::Sound heartSound;
 	sf::Music music;
 	sf::CircleShape triangle;
 	sf::Sprite restart_shape;
@@ -500,7 +525,6 @@ private:
 		music.setLoop(true);
 		squick.setBuffer(bufferForSquick);
 		squick.setVolume(25);
-		heartSound.setVolume(30);
 	}
 
 	void loadFiles()
@@ -532,12 +556,8 @@ private:
 		{
 			cout << "Music could not be loaded!" << endl;
 		}
-	
 		if (!heartTexture.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\heart.png")) {
 			cout << "The heart image could not be loaded!" << endl;
-		}
-		if (!heartBuffer.loadFromFile("C:\\Margo\\Uni\\five\\FlappyBird\\complete.ogg")) {
-			cout << "Game over sound could not be loaded!" << endl;
 		}
 	}
 
@@ -567,7 +587,6 @@ private:
 		for (const Heart& heart : hearts)
 		{
 			sf::Sprite heart_shape = drawHeart(heart);
-			heart_shape.setColor(sf::Color::White);
 			pair<float, float> scale = getScaleFactors(heartTexture, heart);
 			heart_shape.setScale(scale.first * 0.5f, scale.second * 0.5f);
 			heart_shape.setPosition(WINDOW_WIDTH - value - heart.getWidth(), 20);
@@ -575,8 +594,6 @@ private:
 			window.draw(heart_shape);
 		}
 	}
-
-
 
 	void processSignPicture(sf::Sprite& image, sf::Texture&  texture)
 	{
@@ -787,7 +804,8 @@ private:
 					{
 						game->over = false;
 						music.play();
-						FPS = 200.f;
+						window.setFramerateLimit(200);
+						clock.restart();
 						game->reset();
 					}
 				}
@@ -824,7 +842,7 @@ private:
 		{
 			FPS += 70.0f; 
 			window.setFramerateLimit(FPS);
-			game->decreaseTimePipes(0.4);
+			game->decreaseTimePipesHearts(0.4);
 			lastUpdate = elapsedTime; 
 		}
 	}
@@ -853,10 +871,12 @@ public:
 			}			
 			render(game);			
 		}
+		clear();
 	}	
 
-	void clean() {
+	void clear() {
 		squick.stop();
+		music.stop();
 	}
 
 };
@@ -871,6 +891,5 @@ int main()
 	GameEngine* gameEngine = GameEngine::getInstance();
 	Render* render = Render::getInstance();
 	render->launch(gameEngine);
-	render->clean();
 	return 0;
 }
