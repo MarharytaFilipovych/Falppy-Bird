@@ -847,6 +847,11 @@ private:
 		}
 	}
 
+	void clear() {
+		squick.stop();
+		music.stop();
+	}
+
 public:
 
 	static Render* getInstance() {
@@ -873,12 +878,6 @@ public:
 		}
 		clear();
 	}	
-
-	void clear() {
-		squick.stop();
-		music.stop();
-	}
-
 };
 
 Render* Render::instance = nullptr;
