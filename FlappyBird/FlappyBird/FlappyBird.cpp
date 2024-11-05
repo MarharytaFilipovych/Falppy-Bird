@@ -8,7 +8,6 @@ using namespace std;
 #include <memory>
 #define WINDOW_HEIGHT 800
 #define WINDOW_WIDTH 1400
-#define GRAVITY 0.005  
 #define BIRD_HEIGHT 60
 #define BIRD_WIDTH 60
 #define MIN_SPACE_BETWEEN_PIPES 250
@@ -246,6 +245,7 @@ public:
 
 class GameEngine
 {
+	const double gravity = 0.005;
 	vector<Heart> hearts;
 	static GameEngine* instance;
 	sf::Clock clock;
@@ -423,7 +423,7 @@ public:
 	    sf::Time currentTime = clock.getElapsedTime();
 		add_pipes(currentTime);
 		add_hearts(currentTime);
-		bird.updateVelocity(GRAVITY);
+		bird.updateVelocity(gravity);
 		bird.updatePosition();
 		if (collisionCanvas())
 		{		
@@ -494,8 +494,8 @@ public:
 		return instance;
 	}
 };
-GameEngine* GameEngine::instance = nullptr;
 
+GameEngine* GameEngine::instance = nullptr;
 
 class Render {
 private:
@@ -726,7 +726,6 @@ private:
 					
 				}
 			}
-
 			drawHeartAtTop(game->getBird().getLives());
 			displayPoints(game);
 		}
@@ -745,6 +744,7 @@ private:
 		}
 		window.display();
 	}
+
 	bool checkIfClicked(sf::Sprite& shape)
 	{
 		sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window)); 
@@ -882,7 +882,6 @@ public:
 };
 
 Render* Render::instance = nullptr;
-
 
 
 int main()
